@@ -10,7 +10,7 @@ class Cart(models.Model):
         return f"Cart {self.id}" 
     
     def get_total_price(self):
-        return sum(item.get_cost() for item in self.items.all()) 
+        return sum(cart_item.get_total_price() for cart_item in self.cart_items.all()) 
 
 
 class CartItem(models.Model):
@@ -18,9 +18,10 @@ class CartItem(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     quantity = models.PositiveBigIntegerField(default=0)
     
-    def get_cost(self):
-        return self.quantity * self.product.price
+    def get_total_price(self):
+        price = int(self.product.price)
+        quantity = int(self.quantity)
+        return price * quantity
 
     def __str__(self):
         return f'{self.quantity} x {self.product.name}'
-    
