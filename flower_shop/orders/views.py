@@ -4,6 +4,12 @@ from rest_framework import status
 from .serializers import CartSerializer
 from django.shortcuts import get_object_or_404
 from .models import CartItem, Cart, Product
+from rest_framework import viewsets
+from rest_framework import permissions
+from rest_framework import generics
+from django_filters.rest_framework import DjangoFilterBackend
+from .filters import OrderFilter
+from django.db.models import Sum, F
 
 
 CART_SESSION_ID = 'cart'
@@ -85,3 +91,32 @@ class ClearSessionView(APIView):
         request.session.flush()
         #request.session.modified = True
         return Response({"message": "Session deleted"}, status=status.HTTP_200_OK)
+    
+
+class OrderListView(generics.ListAPIView):
+    queryset = Cart.objects.all()
+    serializer_class = CartSerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = OrderFilter
+    permission_classes = [permissions.IsAdminUser]
+
+
+class OrderUpdateView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Cart.objects.all()
+    serializer_class = CartSerializer
+    permission_classes = [permissions.IsAdminUser]
+
+
+class AdminReportView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+    def get(self, request):
+        total_revenue = CartItem.objects.filter(cart__paid=True).aggregate(
+            total = Sum(F('product__price') * F('quantity'))
+        )['total'] or 0
+        total_orders = Cart.objects.count()
+        unpaid_orders = Cart.objects.filter(paid=False).count()
+        return Response({
+            'total_revenue':total_revenue,
+            'total_orders':total_orders,
+            'unpaid_orders':unpaid_orders,
+        })
